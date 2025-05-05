@@ -1,5 +1,8 @@
+import OllamaProvider from './providers/ollama.js';
+
 let conversationHistory = [];
 let ports = new Set();
+const provider = new OllamaProvider();
 
 chrome.runtime.onConnect.addListener(function(port) {
     console.log('Port connected:', port.name);
@@ -15,63 +18,24 @@ chrome.runtime.onConnect.addListener(function(port) {
         if (request.action === 'sendMessage') {
             console.log('Received message:', request.message);
             conversationHistory.push({ role: "user", content: request.message });
-            sendToOllama(conversationHistory, port);
+            sendToProvider(conversationHistory, port);
         }
     });
 });
 
-async function sendToOllama(history, port) {
-    console.log('sendToOllama called with history:', history);
-    const ollamaEndpoint = 'http://localhost:11434/api/generate';
-    const model = 'deepseek-r1:1.5b';
-
-    const requestBody = {
-        model: model,
-        prompt: JSON.stringify(history),
-        stream: true
-    };
-
-    console.log('Sending request to Ollama:', requestBody);
+async function sendToProvider(history, port) {
+    console.log('sendToProvider called with history:', history);
+    let accumulatedResponse = '';
 
     try {
-        const response = await fetch(ollamaEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody),
+        await provider.generateResponse(history, (chunk, isDone) => {
+            accumulatedResponse += chunk;
+            sendMessageToPort(port, { reply: chunk, done: isDone });
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const reader = response.body.getReader();
-        let accumulatedResponse = '';
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-                console.log('Stream complete. Sending final response.');
-                sendMessageToPort(port, { reply: accumulatedResponse, done: true });
-                break;
-            }
-
-            const chunk = new TextDecoder().decode(value);
-            console.log('Received chunk:', chunk);
-            const lines = chunk.split('\n');
-            for (const line of lines) {
-                if (line.trim() !== '') {
-                    const parsedChunk = JSON.parse(line);
-                    accumulatedResponse += parsedChunk.response;
-                    console.log('Sending chunk:', parsedChunk.response);
-                    sendMessageToPort(port, { reply: parsedChunk.response, done: false });
-                }
-            }
-        }
-
         conversationHistory.push({ role: "assistant", content: accumulatedResponse });
-        console.log('Final response:', accumulatedResponse);
     } catch (error) {
-        console.error('Error in sendToOllama:', error);
+        console.error('Error in sendToProvider:', error);
         sendMessageToPort(port, { reply: `Error: ${error.message}`, done: true });
     }
 }
