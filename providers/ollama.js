@@ -1,9 +1,9 @@
 // providers/ollama.js
 
 class OllamaProvider {
-    constructor() {
-        this.endpoint = 'http://localhost:11434/api/generate';
-        this.model = 'deepseek-r1:1.5b';
+    constructor(settings = {}) {
+        this.endpoint = settings.url || 'http://localhost:11434';
+        this.model = settings.model || 'deepseek-r1:1.5b';
     }
 
     async generateResponse(history, onChunk) {
@@ -14,7 +14,7 @@ class OllamaProvider {
         };
 
         try {
-            const response = await fetch(this.endpoint, {
+            const response = await fetch(`${this.endpoint}/api/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody),
@@ -49,6 +49,44 @@ class OllamaProvider {
         } catch (error) {
             console.error('Error in Ollama API call:', error);
             throw error;
+        }
+    }
+
+    static getSettingsFields() {
+        return [
+            { name: 'url', label: 'URL', type: 'text', default: 'http://localhost:11434' },
+            { name: 'model', label: 'Model', type: 'select', options: [] }
+        ];
+    }
+
+    static async getAvailableModels(url) {
+        try {
+            const response = await fetch(`${url}/api/tags`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            return data.models.map(model => model.name);
+        } catch (error) {
+            console.error('Error fetching available models:', error);
+            throw error;
+        }
+    }
+
+    static async updateModelList(urlInput, modelSelect) {
+        const url = urlInput.value;
+        try {
+            const models = await this.getAvailableModels(url);
+            modelSelect.innerHTML = '';
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model;
+                option.textContent = model;
+                modelSelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error updating model list:', error);
+            modelSelect.innerHTML = '<option value="">Error fetching models</option>';
         }
     }
 }

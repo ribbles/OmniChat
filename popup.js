@@ -1,8 +1,5 @@
 // ... existing setup code ...
-
 document.getElementById('openChat').addEventListener('click', function() {
     chrome.tabs.create({url: 'chat.html'});
 });
-// ... other code ...
-
-// ... rest of the original code ...
+console.log('Popup script loaded.');

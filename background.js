@@ -1,8 +1,78 @@
-import OllamaProvider from './providers/ollama.js';
-
 let conversationHistory = [];
 let ports = new Set();
-const provider = new OllamaProvider();
+let provider;
+
+const OllamaProvider = {
+    constructor(settings = {}) {
+        this.endpoint = settings.url || 'http://localhost:11434';
+        this.model = settings.model || 'deepseek-r1:1.5b';
+    },
+
+    async generateResponse(history, onChunk) {
+        const requestBody = {
+            model: this.model,
+            prompt: JSON.stringify(history),
+            stream: true
+        };
+
+        try {
+            const response = await fetch(`${this.endpoint}/api/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            let accumulatedResponse = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    onChunk(accumulatedResponse, true);
+                    break;
+                }
+
+                const chunk = new TextDecoder().decode(value);
+                const lines = chunk.split('\n');
+                for (const line of lines) {
+                    if (line.trim() !== '') {
+                        const parsedChunk = JSON.parse(line);
+                        accumulatedResponse += parsedChunk.response;
+                        onChunk(parsedChunk.response, false);
+                    }
+                }
+            }
+
+            return accumulatedResponse;
+        } catch (error) {
+            console.error('Error in Ollama API call:', error);
+            throw error;
+        }
+    }
+};
+
+function loadProvider() {
+    chrome.storage.sync.get(['provider', 'providerSettings'], function(result) {
+        const providerType = result.provider || 'ollama';
+        const settings = result.providerSettings || {};
+
+        if (providerType === 'ollama') {
+            provider = Object.create(OllamaProvider);
+            provider.constructor(settings);
+        } else {
+            // Default to Ollama if no provider is set or recognized
+            provider = Object.create(OllamaProvider);
+            provider.constructor();
+        }
+        console.log('Provider loaded:', providerType, 'with settings:', settings);
+    });
+}
+
+loadProvider();
 
 chrome.runtime.onConnect.addListener(function(port) {
     console.log('Port connected:', port.name);
@@ -21,6 +91,14 @@ chrome.runtime.onConnect.addListener(function(port) {
             sendToProvider(conversationHistory, port);
         }
     });
+});
+
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+    if (request.action === 'reloadProvider') {
+        loadProvider();
+        sendResponse({success: true});
+    }
+    return true;
 });
 
 async function sendToProvider(history, port) {

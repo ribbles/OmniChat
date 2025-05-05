@@ -4,16 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OmniChat</title>
-    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body>
-    <div id="chat-container">
-        <div id="chat-messages"></div>
-        <div id="input-container">
-            <textarea id="user-input" placeholder="Type your message..."></textarea>
-            <button id="send-button">Send</button>
+<body class="d-flex flex-column vh-100">
+    <div id="chat-container" class="flex-grow-1 d-flex flex-column">
+        <div id="chat-messages" class="flex-grow-1 overflow-auto p-3"></div>
+        <div id="spinner" class="spinner-border text-primary align-self-center my-3 d-none" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <div id="input-container" class="p-3 border-top">
+            <div class="input-group">
+                <textarea id="user-input" class="form-control" placeholder="Type your message..."></textarea>
+                <button id="send-button" class="btn btn-primary">Send</button>
+            </div>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js"></script>
     <script src="chat.js"></script>
 </body>
 </html>

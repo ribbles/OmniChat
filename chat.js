@@ -1,16 +1,14 @@
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM content loaded');
     const chatMessages = document.getElementById('chat-messages');
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button');
-
-    console.log('Elements found:', {chatMessages, userInput, sendButton});
+    const spinner = document.getElementById('spinner');
 
     let currentThinkElement, currentAiElement;
     let accumulatedThinkContent = '';
     let accumulatedAiContent = '';
-    let port;
     let isThinking = false;
+    let port;
 
     function connectPort() {
         port = chrome.runtime.connect({name: "chat"});
@@ -46,6 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
             accumulatedThinkContent = '';
             accumulatedAiContent = '';
             isThinking = true;
+            showSpinner();
             console.log('Sending message to background script');
             try {
                 port.postMessage({action: 'sendMessage', message: message});
@@ -82,6 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response.done) {
                 console.log('Response done. Final think content:', accumulatedThinkContent);
                 console.log('Response done. Final AI content:', accumulatedAiContent);
+                hideSpinner();
             }
         }
     }
@@ -101,14 +101,20 @@ document.addEventListener('DOMContentLoaded', function() {
     function addMessage(sender, text) {
         console.log(`Adding ${sender} message:`, text);
         const messageElement = document.createElement('div');
-        messageElement.classList.add('message', sender + '-message');
+        messageElement.classList.add('message', `${sender}-message`, 'mb-2', 'p-2', 'rounded');
         
-        if (sender === 'think') {
+        if (sender === 'user') {
+            messageElement.classList.add('text-end', 'bg-primary', 'text-white');
+        } else if (sender === 'ai') {
+            messageElement.classList.add('bg-light');
+        } else if (sender === 'think') {
+            messageElement.classList.add('bg-secondary', 'text-white', 'fst-italic');
+            
             const header = document.createElement('div');
-            header.classList.add('think-header');
+            header.classList.add('think-header', 'd-flex', 'align-items-center', 'cursor-pointer');
             
             const arrow = document.createElement('span');
-            arrow.classList.add('collapse-arrow');
+            arrow.classList.add('me-2');
             arrow.textContent = '▼';
             
             const label = document.createElement('span');
@@ -119,23 +125,32 @@ document.addEventListener('DOMContentLoaded', function() {
             header.appendChild(label);
             
             const content = document.createElement('div');
-            content.classList.add('content');
+            content.classList.add('content', 'mt-1');
             
             messageElement.appendChild(header);
             messageElement.appendChild(content);
             
             header.addEventListener('click', function() {
-                messageElement.classList.toggle('collapsed');
+                content.classList.toggle('d-none');
+                arrow.textContent = content.classList.contains('d-none') ? '▶' : '▼';
             });
-        } else if (sender === 'ai') {
-            // Leave the AI message element empty, it will be filled later
-        } else {
+        }
+        
+        if (sender !== 'think') {
             messageElement.textContent = text;
         }
         
         chatMessages.appendChild(messageElement);
         chatMessages.scrollTop = chatMessages.scrollHeight;
         return messageElement;
+    }
+
+    function showSpinner() {
+        spinner.classList.remove('d-none');
+    }
+
+    function hideSpinner() {
+        spinner.classList.add('d-none');
     }
 });
 
