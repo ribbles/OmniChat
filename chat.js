@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (response.reply.includes('</think>')) {
                 // End of think content
                 isThinking = false;
-                collapseThinkContent();
+                collapseThinkConte();
             } else {
                 accumulatedAiContent += response.reply.trim() + ' ';
                 updateAiContent();
@@ -151,6 +151,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function hideSpinner() {
         spinner.classList.add('d-none');
+    }
+
+    // Sidebar functionality
+    const sidebarToggle = document.querySelector('[data-bs-toggle="collapse"]');
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function() {
+            document.querySelector('.sidebar').classList.toggle('show');
+        });
     }
 });
 
